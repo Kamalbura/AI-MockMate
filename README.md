@@ -1,6 +1,6 @@
 # AI MockMate
 
-AI MockMate is an AI-powered interview preparation platform that helps users enhance their interview skills through mock interviews and personalized feedback.
+AI MockMate is an innovative AI-powered interview preparation platform designed to help job seekers and professionals enhance their interview skills. It offers real-time mock interviews, AI-driven feedback, and personalized performance analysis to ensure users gain confidence and improve their responses.
 
 ## 🚀 Live Demo
 🔗 [AI MockMate](https://ai-mock-mate-seven.vercel.app/)
