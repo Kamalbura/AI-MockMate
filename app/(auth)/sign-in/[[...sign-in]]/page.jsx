@@ -1,4 +1,3 @@
-// Code by Utsav Patel
 import { SignIn } from "@clerk/nextjs";
 
 export default function Page() {

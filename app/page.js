@@ -1,4 +1,3 @@
-// Code by Utsav Patel
 import Header from "./dashboard/_components/Header";
 import HeroSection from "./dashboard/_components/HeroSection";
 import HomeStats from "./dashboard/_components/HomeStats"
