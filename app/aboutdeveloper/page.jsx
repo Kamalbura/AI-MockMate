@@ -60,7 +60,7 @@ const page = () => {
                 </div>
               </div>
             </article>
-          </div> 
+          </div>
         </div>
         <Footer />
       </div>
