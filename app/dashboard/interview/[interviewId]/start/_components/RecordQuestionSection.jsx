@@ -9,9 +9,9 @@ import { toast } from "sonner";
 import { chatSession } from "../../../../../../utils/GeminiAI";
 import { db } from "../../../../../../utils/db";
 import { UserAnswer } from "../../../../../../utils/schema";
-import { useUser } from "@clerk/nextjs";
+// Replace Clerk with our custom auth
+import { useAuth } from "../../../../../../context/AuthContext";
 import moment from "moment";
-import { ConsoleLogWriter } from "drizzle-orm";
 
 function RecordQuestionSection({
   mockInterviewQuestion,
@@ -19,7 +19,8 @@ function RecordQuestionSection({
   interviewData,
 }) {
   const [userAnswer, setUserAnswer] = useState("");
-  const { user } = useUser();
+  // Replace useUser with useAuth
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const {
     error,
@@ -67,31 +68,38 @@ function RecordQuestionSection({
       " please give us rating for answer and feedback as area of improvement" +
       "in just 3 to 5 lines to improve it in JSON format with rating field and feedback field ";
 
-    const result = await chatSession.sendMessage(feedbackPrompt);
-    const mockJsonResp = result.response
-      .text()
-      .replace("```json", "")
-      .replace("```", "");
-    console.log(mockJsonResp);
-    const JsonFeedbackResp = JSON.parse(mockJsonResp);
+    try {
+      const result = await chatSession.sendMessage(feedbackPrompt);
+      const mockJsonResp = result.response
+        .text()
+        .replace("```json", "")
+        .replace("```", "");
+      console.log(mockJsonResp);
+      const JsonFeedbackResp = JSON.parse(mockJsonResp);
 
-    const resp = await db.insert(UserAnswer).values({
-      mockIdRef: interviewData?.mockId,
-      question: mockInterviewQuestion[activeQuestionIndex]?.question,
-      correctAns: mockInterviewQuestion[activeQuestionIndex]?.answer,
-      userAns: userAnswer,
-      feedback: JsonFeedbackResp?.feedback,
-      rating: JsonFeedbackResp?.rating,
-      userEmail: user?.primaryEmailAddress.emailAddress,
-      createdAt: moment().format("DD-MM-yyyy"),
-    });
-    if (resp) {
-      toast("User Answer Recorded successfully.");
-      setUserAnswer("");
+      const resp = await db.insert(UserAnswer).values({
+        mockIdRef: interviewData?.mockId,
+        question: mockInterviewQuestion[activeQuestionIndex]?.question,
+        correctAns: mockInterviewQuestion[activeQuestionIndex]?.answer,
+        userAns: userAnswer,
+        feedback: JsonFeedbackResp?.feedback,
+        rating: JsonFeedbackResp?.rating,
+        userEmail: user?.primaryEmailAddress?.emailAddress || "demo@example.com", // Add fallback
+        createdAt: moment().format("DD-MM-yyyy"),
+      });
+      if (resp) {
+        toast("User Answer Recorded successfully.");
+        setUserAnswer("");
+        setResults([]);
+      }
       setResults([]);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error parsing AI response:", error);
+      setLoading(false);
+      toast.error("Failed to process AI response");
+      return;
     }
-    setResults([]);
-    setLoading(false);
   };
 
   return (

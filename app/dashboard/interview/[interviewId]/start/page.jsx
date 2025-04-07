@@ -8,17 +8,18 @@ import RecordQuestionSection from "./_components/RecordQuestionSection";
 import { Button } from "../../../../../components/ui/button";
 import { IoIosArrowBack } from "react-icons/io";
 import { MdNavigateNext } from "react-icons/md";
-
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 function StartInterview({ params }) {
   const [interviewData, setInterviewData] = useState();
   const [mockInterviewQuestion, setMockInterviewQuestion] = useState();
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
+  const router = useRouter();
 
   useEffect(() => {
     GetInterviewDetails();
   }, []);
+  
   // Used to get interview details by MockID/Interview ID
   const GetInterviewDetails = async () => {
     try {
@@ -27,14 +28,23 @@ function StartInterview({ params }) {
         .from(MockInterview)
         .where(eq(MockInterview.mockId, params.interviewId));
 
-      const jsonMockResp = JSON.parse(result[0].jsonMockResp);
-      console.log(jsonMockResp);
-      setMockInterviewQuestion(jsonMockResp);
-      setInterviewData(result[0]);
+      if (result && result.length > 0) {
+        const jsonMockResp = JSON.parse(result[0].jsonMockResp);
+        console.log(jsonMockResp);
+        setMockInterviewQuestion(jsonMockResp);
+        setInterviewData(result[0]);
+      }
     } catch (error) {
       console.error("Error fetching interview details:", error);
     }
   };
+  
+  const navigateToFeedback = () => {
+    if (interviewData?.mockId) {
+      router.push(`/dashboard/interview/${interviewData.mockId}/feedback`);
+    }
+  };
+  
   return (
     <>
       <div>
@@ -61,7 +71,7 @@ function StartInterview({ params }) {
               Previous Question
             </Button>
           )}
-          {activeQuestionIndex != mockInterviewQuestion?.length - 1 && (
+          {mockInterviewQuestion && activeQuestionIndex !== mockInterviewQuestion.length - 1 && (
             <Button
               onClick={() => setActiveQuestionIndex(activeQuestionIndex + 1)}
             >
@@ -69,14 +79,10 @@ function StartInterview({ params }) {
               <MdNavigateNext className="w-5 h-5" />
             </Button>
           )}
-          {activeQuestionIndex == mockInterviewQuestion?.length - 1 && (
-            <Link
-              href={
-                "/dashboard/interview/" + interviewData?.mockId + "/feedback"
-              }
-            >
-              <Button>End Interview</Button>
-            </Link>
+          {mockInterviewQuestion && activeQuestionIndex === mockInterviewQuestion.length - 1 && (
+            <Button onClick={navigateToFeedback}>
+              End Interview
+            </Button>
           )}
         </div>
       </div>

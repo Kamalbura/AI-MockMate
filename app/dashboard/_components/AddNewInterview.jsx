@@ -17,9 +17,10 @@ import { db } from "../../../utils/db";
 import { LoaderCircle } from "lucide-react";
 import { MockInterview } from "../../../utils/schema";
 import { v4 as uuidv4 } from "uuid";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "../../../context/AuthContext"; // Updated import
 import moment from "moment/moment";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 function AddNewInterview() {
   const [openDialog, setOpenDialog] = useState(false);
@@ -29,35 +30,49 @@ function AddNewInterview() {
   const [loading, setLoading] = useState(false);
   const [JsonResponse, setJsonResponse] = useState([]);
   const router = useRouter();
-  const { isSignedIn, user } = useUser();
+  const { user, isSignedIn } = useAuth(); // Changed from useUser to useAuth
 
   const onSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
+    e.preventDefault();
+    setLoading(true);
 
-  const InputPrompt = `Job Position: ${jobPosition}, Job Description: ${jobDesc}, Years of Experience: ${jobExperience}. Depends on Job Position, Job Description & Years of Experience, give me the ${process.env.NEXT_PUBLIC_INTERVIEW_QUESTION_COUNT} interview questions along with answers in JSON format.`;
+    try {
+      if (!jobPosition || !jobDesc || !jobExperience) {
+        toast.error("Please fill in all required fields");
+        setLoading(false);
+        return;
+      }
 
-  try {
-    // Get response from chat AI session
-    const result = await chatSession.sendMessage(InputPrompt);
+      const InputPrompt = `Job Position: ${jobPosition}, Job Description: ${jobDesc}, Years of Experience: ${jobExperience}. Depends on Job Position, Job Description & Years of Experience, give me the ${process.env.NEXT_PUBLIC_INTERVIEW_QUESTION_COUNT} interview questions along with answers in JSON format.`;
 
-    // Log the raw response
-    const rawResponse = await result.response.text();
-    console.log("Raw Response:", rawResponse);
+      // Get response from chat AI session
+      const result = await chatSession.sendMessage(InputPrompt);
 
-    // Extract only the JSON part using regex (for more advanced cleaning)
-    let jsonStart = rawResponse.indexOf("[");
-    let jsonEnd = rawResponse.lastIndexOf("]");
-    
-    // Validate if the array markers were found
-    if (jsonStart !== -1 && jsonEnd !== -1) {
+      // Log the raw response
+      const rawResponse = await result.response.text();
+
+      // Extract only the JSON part using regex (for more advanced cleaning)
+      let jsonStart = rawResponse.indexOf("[");
+      let jsonEnd = rawResponse.lastIndexOf("]");
+
+      // Validate if the array markers were found
+      if (jsonStart === -1 || jsonEnd === -1) {
+        toast.error("Couldn't generate proper interview questions. Please try again.");
+        setLoading(false);
+        return;
+      }
+
       let cleanedResponse = rawResponse.substring(jsonStart, jsonEnd + 1);
 
       try {
-        const MockJsonResp = JSON.parse(cleanedResponse); // Parse JSON
-        console.log("Parsed Response:", MockJsonResp);
+        const MockJsonResp = JSON.parse(cleanedResponse);
 
-        // Optimistic UI Update (Show data immediately)
+        if (!Array.isArray(MockJsonResp) || MockJsonResp.length === 0) {
+          toast.error("Generated questions are invalid. Please try again.");
+          setLoading(false);
+          return;
+        }
+
         setJsonResponse(MockJsonResp);
 
         // Insert into DB
@@ -65,7 +80,7 @@ function AddNewInterview() {
           .insert(MockInterview)
           .values({
             mockId: uuidv4(),
-            jsonMockResp: cleanedResponse, // Store cleaned JSON
+            jsonMockResp: cleanedResponse,
             jobPosition: jobPosition,
             jobDesc: jobDesc,
             jobExperience: jobExperience,
@@ -74,26 +89,26 @@ function AddNewInterview() {
           })
           .returning({ mockId: MockInterview.mockId });
 
-        console.log("Inserted ID: ", resp);
-
-        // After insertion, update UI and route to the new interview
-        if (resp) {
-          setOpenDialog(false);
-          router.push("/dashboard/interview/" + resp[0]?.mockId);
+        if (!resp || resp.length === 0) {
+          toast.error("Failed to create interview. Please try again.");
+          setLoading(false);
+          return;
         }
+
+        toast.success("Interview created successfully!");
+        setOpenDialog(false);
+        router.push("/dashboard/interview/" + resp[0].mockId);
       } catch (parseError) {
-        console.error("JSON Parsing Error:", parseError, cleanedResponse);
+        console.error("JSON Parsing Error:", parseError);
+        toast.error("Failed to process AI response. Please try again.");
       }
-    } else {
-      console.error("No valid JSON found in response");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Something went wrong. Please try again later.");
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error during AI session or DB insertion:", error);
-  }
-
-  setLoading(false);
-};
-
+  };
 
   return (
     <>
@@ -198,7 +213,7 @@ function AddNewInterview() {
                       {loading ? (
                         <>
                           <LoaderCircle className="animate-spin" />
-                          'Generating from AI'
+                          Generating from AI
                         </>
                       ) : (
                         "Start Interview"
